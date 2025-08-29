@@ -1,4 +1,3 @@
-# plugins/start.py
 import os, sys, asyncio, time
 from aiohttp import ClientSession
 from pyrogram import filters
@@ -35,14 +34,14 @@ REPLY_ERROR = "<code>Use this command as a reply to a message.</code>"
 async def poll_payment_status(user_id, txn_id):
     """Poll BharatPe API until payment success."""
     async with ClientSession() as session:
-        url = f"https://api.bharatpe.in/transaction/{txn_id}"  # BharatPe transaction status endpoint
+        url = f"https://api.bharatpe.in/transaction/{txn_id}"
         headers = {
             "accept": "application/json",
             "Authorization": f"Bearer {BHARATPE_API_TOKEN}"
         }
 
         for _ in range(30):  # 30 attempts = ~5 minutes
-            await asyncio.sleep(10)  # check every 10 sec
+            await asyncio.sleep(10)
             try:
                 async with session.get(url, headers=headers) as resp:
                     data = await resp.json()
@@ -67,39 +66,44 @@ async def poll_payment_status(user_id, txn_id):
 # --------------------------------------------------------
 
 # BUY PREMIUM CALLBACK
-@Bot.on_callback_query(filters.regex("buy_premium"))
+@Bot.on_callback_query(filters.regex("^buy_premium$"))
 async def buy_premium_callback(client: Bot, cq: CallbackQuery):
     user_id = cq.from_user.id
     txn_id = f"TXN_{user_id}_{int(time.time())}"
 
-    async with ClientSession() as session:
-        url = "https://api.bharatpe.in/payment/merchant/create"   # BharatPe payment link endpoint
-        headers = {
-            "accept": "application/json",
-            "content-type": "application/json",
-            "Authorization": f"Bearer {BHARATPE_API_TOKEN}"
-        }
-        payload = {
-            "amount": 5900,  # = ₹59.00 (paise me dena hota hai)
-            "currency": "INR",
-            "merchantId": BHARATPE_MERCHANT_ID,
-            "transactionId": txn_id
-        }
-        async with session.post(url, headers=headers, json=payload) as resp:
-            data = await resp.json()
+    try:
+        async with ClientSession() as session:
+            url = "https://api.bharatpe.in/payment/merchant/create"
+            headers = {
+                "accept": "application/json",
+                "content-type": "application/json",
+                "Authorization": f"Bearer {BHARATPE_API_TOKEN}"
+            }
+            payload = {
+                "amount": 5900,  # = ₹59.00 (paise me dena hota hai)
+                "currency": "INR",
+                "merchantId": BHARATPE_MERCHANT_ID,
+                "transactionId": txn_id
+            }
+            async with session.post(url, headers=headers, json=payload) as resp:
+                data = await resp.json()
 
-    payment_url = data.get("payment_url", "https://bharatpe.com")
+        payment_url = data.get("payment_url", "https://bharatpe.com")
 
-    btn = [[InlineKeyboardButton("💳 Pay ₹59", url=payment_url)]]
-    await cq.message.reply(
-        f"💳 <b>Payment Link Generated!</b>\n\nClick below to pay <b>₹59</b> and unlock premium instantly.\n\nTransaction ID: <code>{txn_id}</code>",
-        reply_markup=InlineKeyboardMarkup(btn)
-    )
-    await cq.answer()
+        btn = [[InlineKeyboardButton("💳 Pay ₹59", url=payment_url)]]
+        await cq.message.reply(
+            f"💳 <b>Payment Link Generated!</b>\n\nClick below to pay <b>₹59</b> and unlock premium instantly.\n\nTransaction ID: <code>{txn_id}</code>",
+            reply_markup=InlineKeyboardMarkup(btn)
+        )
 
-    # Start polling in background
-    asyncio.create_task(poll_payment_status(user_id, txn_id))
+        # Background me payment poll start karo
+        asyncio.create_task(poll_payment_status(user_id, txn_id))
 
+    except Exception as e:
+        await cq.message.reply(f"❌ Error: {e}")
+
+    finally:
+        await cq.answer()
 
 # -------------------- START COMMAND --------------------
 async def delete_after_delay(message: Message, delay):
@@ -151,7 +155,6 @@ async def start_command(client: Bot, message: Message):
             quote=True
         )
 
-
 # -------------------- NOT JOINED HANDLER --------------------
 @Bot.on_message(filters.command('start') & filters.private)
 async def not_joined(client: Bot, message: Message):
@@ -202,4 +205,5 @@ async def not_joined(client: Bot, message: Message):
         reply_markup=InlineKeyboardMarkup(buttons),
         quote=True,
         disable_web_page_preview=True
-    )
+        )
+    
