@@ -1,9 +1,16 @@
 {
   "version": 2,
   "builds": [
-    { "src": "app.py", "use": "@vercel/python" }
+    {
+      "src": "plugins/start.py",
+      "use": "@vercel/python"
+    }
   ],
   "routes": [
-    { "src": "/bharatpe_webhook", "methods": ["POST"], "dest": "app.py" }
+    {
+      "src": "/bharatpe_webhook",
+      "methods": ["POST"],
+      "dest": "plugins/start.py"
+    }
   ]
 }
