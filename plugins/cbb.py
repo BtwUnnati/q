@@ -62,20 +62,6 @@ def fmt_time_left(seconds: int) -> str:
     m, s = divmod(seconds, 60)
     return f"{m:02d}:{s:02d}"
 
-@app.on_message(filters.command("start"))
-async def start(_, m):
-    user_id = m.from_user.id
-    if is_premium(user_id):
-        await m.reply("✅ You already have Premium Access!")
-    else:
-        btns = InlineKeyboardMarkup([[InlineKeyboardButton("💎 Buy Premium", callback_data="buy_premium")]])
-        await m.reply(
-            f"👋 Hello {m.from_user.first_name}!\n\n"
-            f"⭐ Premium Plan: ₹{PREMIUM_PRICE}/30 Days\n\n"
-            "Click below to unlock Premium instantly 👇",
-            reply_markup=btns
-        )
-
 @app.on_callback_query(filters.regex("buy_premium"))
 async def buy_premium(_, cq):
     user_id = cq.from_user.id
@@ -87,7 +73,7 @@ async def buy_premium(_, cq):
     expire_time = start_time + PAY_WINDOW
 
     msg = await cq.message.reply(
-        f"💰 Please pay ₹{PREMIUM_PRICE} via BharatPe:\n\n{pay_url}\n\n"
+        f"💰 Please pay ₹{PREMIUM_PRICE} via Any Upi Payment Apps :\n\n{pay_url}\n\n"
         f"⏳ Time left: {fmt_time_left(PAY_WINDOW)}",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔗 Pay Now", url=pay_url)]])
     )
@@ -110,7 +96,7 @@ async def buy_premium(_, cq):
             # update countdown
             try:
                 await msg.edit_text(
-                    f"💰 Please pay ₹{PREMIUM_PRICE} via BharatPe:\n\n{pay_url}\n\n"
+                    f"💰 Please pay ₹{PREMIUM_PRICE} via any upi payment app:\n\n{pay_url}\n\n"
                     f"⏳ Time left: {fmt_time_left(left)}",
                     reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔗 Pay Now", url=pay_url)]])
                 )
