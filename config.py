@@ -33,7 +33,7 @@ BOT_USERNAME = os.environ.get("BOT_USERNAME", "@BioLinkAdd_bot")
 CONTACT_USERNAME = os.environ.get("CONTACT_USERNAME", "axcne")
 
 #Premium Members Log Channel
-PREMIUM_CHANNEL_ID = int(os.environ.get("PREMIUM_CHANNEL_ID", ""))
+PREMIUM_CHANNEL_ID = int(os.environ.get("PREMIUM_CHANNEL_ID", "-1002760355837"))
 
 #premium url
 BUY_URL = os.environ.get("BUY_URL", "https://t.me/HeavenOwnerXBot")
