@@ -2,10 +2,40 @@ import time
 import pymongo
 from pyrogram.types import Message
 from config import DB_URI, DB_NAME
+import sqlite3
+
+
+#autopay Bharat 
+def init_db():
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("""CREATE TABLE IF NOT EXISTS users (
+        user_id INTEGER PRIMARY KEY,
+        is_premium INTEGER DEFAULT 0
+    )""")
+    conn.commit()
+    conn.close()
+
+def set_premium(user_id: int):
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("INSERT OR REPLACE INTO users (user_id, is_premium) VALUES (?, 1)", (user_id,))
+    conn.commit()
+    conn.close()
+
+def is_premium(user_id: int) -> bool:
+    conn = sqlite3.connect("users.db")
+    c = conn.cursor()
+    c.execute("SELECT is_premium FROM users WHERE user_id = ?", (user_id,))
+    row = c.fetchone()
+    conn.close()
+    return row and row[0] == 1
+
+
 
 # Owner Telegram ID
 OWNER_ID = 7089574265
-
+    
 # Mongo setup
 dbclient = pymongo.MongoClient(DB_URI)
 database = dbclient[DB_NAME]
