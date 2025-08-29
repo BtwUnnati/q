@@ -118,7 +118,7 @@ async def buy_premium(_, cq):
 
             await asyncio.sleep(15)
 
-    app.loop.create_task(monitor_payment())
+    app.create_task(monitor_payment())
 
 app.run()
 
