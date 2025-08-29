@@ -18,19 +18,19 @@ PREMIUM_PRICE = 59   # INR
 PAY_WINDOW = 300     # seconds (5 minutes)
 
 #Bot token @Botfather
-TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "")
+TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "8064669436:AAFiY_gyPoF4QwTy3DF8gF4_zDheXIKP0R8")
 
 #Your API ID from my.telegram.org
-APP_ID = int(os.environ.get("APP_ID", ""))
+APP_ID = int(os.environ.get("APP_ID", "28452154"))
 
 #Your API Hash from my.telegram.org
-API_HASH = os.environ.get("API_HASH", "")
+API_HASH = os.environ.get("API_HASH", "a14cc1a01dd79ada014d774332fd2285")
 
 #Your db channel Id
-CHANNEL_ID = int(os.environ.get("CHANNEL_ID", ""))
+CHANNEL_ID = int(os.environ.get("CHANNEL_ID", "-1002760355837"))
 
 #OWNER ID
-OWNER_ID = int(os.environ.get("OWNER_ID", ""))
+OWNER_ID = int(os.environ.get("OWNER_ID", "6944519938"))
 
 #Port
 PORT = os.environ.get("PORT", "5002")
@@ -49,7 +49,7 @@ BUY_TEXT = os.environ.get("BUY_TEXT", "Hey👋 !\n\n<blockquote><b>what is Prime
 ADMIN_URL = os.environ.get("ADMIN_URL", "https://t.me/HeavenOwnerXBot")
 
 #Database
-DB_URI = os.environ.get("DATABASE_URL", "mongodb+srv://trezlomm:gFzlvFQ3A0ttvm9y@cluster0.toyco5h.mongodb.net/")
+DB_URI = os.environ.get("DATABASE_URL", "mongodb+srv://hnyx:wywyw2@cluster0.9dxlslv.mongodb.net/?retryWrites=true&w=majority")
 DB_NAME = os.environ.get("DATABASE_NAME", "cluster0")
 JOIN_REQS_DB1 = environ.get("JOIN_REQS_DB1", DB_URI)
 JOIN_REQS_DB2 = environ.get("JOIN_REQS_DB2", DB_URI)
