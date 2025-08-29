@@ -18,7 +18,7 @@ PREMIUM_PRICE = 59   # INR
 PAY_WINDOW = 300     # seconds (5 minutes)
 
 #Bot token @Botfather
-TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "8064669436:AAGjoMfI1cLt4E7Xy9C_vn-lODIIfUV7nNA")
+TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "8064669436:AAFJcA--KPZfcYGIKutqY50490bviuvUXBo")
 
 #Your API ID from my.telegram.org
 APP_ID = int(os.environ.get("APP_ID", "28452154"))
