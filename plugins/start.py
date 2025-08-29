@@ -1,9 +1,16 @@
-import os, sys, asyncio, time
-from aiohttp import ClientSession
-from pyrogram import filters
+# plugins/start.py
+import os
+import sys
+import asyncio
+import time
+from pyrogram import Client, filters
 from pyrogram.enums import ParseMode
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram.errors import FloodWait
+from flask import Flask, request
+import threading
+import requests
+
 from bot import Bot
 from config import (
     ADMINS, OWNER_ID, FORCE_MSG, START_MSG, CUSTOM_CAPTION,
@@ -16,96 +23,16 @@ from helper_func import (
     get_verify_status, update_verify_status, get_exp_time,
     encode_link_to_base64, fetch_encrypted_url
 )
-from database.database import (
-    add_user, del_user, full_userbase, present_user,
-    is_admin, get_user, expire_premium_user, user_data
-)
+from database.database import add_user, del_user, full_userbase, present_user, is_admin, get_user, expire_premium_user
 
-# -------------------------------------------------------------------
-# BharatPe credentials
-BHARATPE_API_TOKEN = "bcc467040e43979777b03881bf2916"
-BHARATPE_MERCHANT_ID = "56433931"
-# -------------------------------------------------------------------
+# ---------------- PAYMENT CONFIG ----------------
+BHARATPE_MERCHANT_ID = "YOUR_MERCHANT_ID"
+BHARATPE_PAYMENT_BASE_URL = f"https://bharatpe.in/pay/{BHARATPE_MERCHANT_ID}/"
+WEBHOOK_HOST = "https://yourdomain.com"  # Replace with your HTTPS URL
+WEBHOOK_PATH = "/bharatpe_webhook"
+user_orders = {}  # temporary storage for user order mapping
 
-WAIT_MSG = "<b>Processing...</b>"
-REPLY_ERROR = "<code>Use this command as a reply to a message.</code>"
-
-# -------------------- PAYMENT POLLER --------------------
-async def poll_payment_status(user_id, txn_id):
-    """Poll BharatPe API until payment success."""
-    async with ClientSession() as session:
-        url = f"https://api.bharatpe.in/transaction/{txn_id}"
-        headers = {
-            "accept": "application/json",
-            "Authorization": f"Bearer {BHARATPE_API_TOKEN}"
-        }
-
-        for _ in range(30):  # 30 attempts = ~5 minutes
-            await asyncio.sleep(10)
-            try:
-                async with session.get(url, headers=headers) as resp:
-                    data = await resp.json()
-            except Exception:
-                continue
-
-            status = data.get("status")
-            if status == "SUCCESS":
-                # Update DB
-                user_data.update_one(
-                    {"_id": user_id}, {"$set": {"premium": True}}, upsert=True
-                )
-                # Notify user
-                try:
-                    await Bot().send_message(
-                        user_id,
-                        "✅ Payment received! You are now a Premium User 🎉"
-                    )
-                except:
-                    pass
-                break
-# --------------------------------------------------------
-
-# BUY PREMIUM CALLBACK
-@Bot.on_callback_query(filters.regex("^buy_premium$"))
-async def buy_premium_callback(client: Bot, cq: CallbackQuery):
-    user_id = cq.from_user.id
-    txn_id = f"TXN_{user_id}_{int(time.time())}"
-
-    try:
-        async with ClientSession() as session:
-            url = "https://api.bharatpe.in/payment/merchant/create"
-            headers = {
-                "accept": "application/json",
-                "content-type": "application/json",
-                "Authorization": f"Bearer {BHARATPE_API_TOKEN}"
-            }
-            payload = {
-                "amount": 5900,  # = ₹59.00 (paise me dena hota hai)
-                "currency": "INR",
-                "merchantId": BHARATPE_MERCHANT_ID,
-                "transactionId": txn_id
-            }
-            async with session.post(url, headers=headers, json=payload) as resp:
-                data = await resp.json()
-
-        payment_url = data.get("payment_url", "https://bharatpe.com")
-
-        btn = [[InlineKeyboardButton("💳 Pay ₹59", url=payment_url)]]
-        await cq.message.reply(
-            f"💳 <b>Payment Link Generated!</b>\n\nClick below to pay <b>₹59</b> and unlock premium instantly.\n\nTransaction ID: <code>{txn_id}</code>",
-            reply_markup=InlineKeyboardMarkup(btn)
-        )
-
-        # Background me payment poll start karo
-        asyncio.create_task(poll_payment_status(user_id, txn_id))
-
-    except Exception as e:
-        await cq.message.reply(f"❌ Error: {e}")
-
-    finally:
-        await cq.answer()
-
-# -------------------- START COMMAND --------------------
+# ---------------- UTILITY ----------------
 async def delete_after_delay(message: Message, delay):
     await asyncio.sleep(delay)
     try:
@@ -113,6 +40,41 @@ async def delete_after_delay(message: Message, delay):
     except:
         pass
 
+WAIT_MSG = "<b>Processing...</b>"
+REPLY_ERROR = "<code>Use this command as a reply to a message.</code>"
+
+# ---------------- FLASK WEBHOOK ----------------
+app = Flask(__name__)
+
+@app.route(WEBHOOK_PATH, methods=["POST"])
+def bharatpe_webhook():
+    data = request.json
+    order_id = data.get("order_id")
+    status = data.get("status")
+    amount = data.get("amount")
+
+    if status == "SUCCESS" and order_id in user_orders:
+        user_id = user_orders[order_id]
+        # Mark user as premium in DB
+        asyncio.run(expire_premium_user(user_id, None, set_premium=True))
+        # Send Telegram message
+        requests.post(
+            f"https://api.telegram.org/bot{Bot.bot_token}/sendMessage",
+            json={
+                "chat_id": user_id,
+                "text": f"✅ Payment of ₹{amount} received!\nYou are now a premium member."
+            }
+        )
+        del user_orders[order_id]
+    return "OK"
+
+# run Flask in background
+def run_flask():
+    app.run(host="0.0.0.0", port=5000)
+
+threading.Thread(target=run_flask).start()
+
+# ---------------- TELEGRAM BOT ----------------
 @Bot.on_message(filters.command('start') & filters.private & subscribed1 & subscribed2 & subscribed3)
 async def start_command(client: Bot, message: Message):
     uid = message.from_user.id
@@ -130,9 +92,67 @@ async def start_command(client: Bot, message: Message):
     user_data_doc = await get_user(uid) or {"premium": False}
 
     if user_data_doc.get('premium', False) or uid == OWNER_ID:
+        # handle start payload (channel link based)
+        if len(message.text) > 7:
+            try:
+                base64_string = message.text.split(" ", 1)[1]
+                string_decoded = await decode(base64_string)
+                argument = string_decoded.split("-")
+
+                if len(argument) == 3:
+                    start = int(int(argument[1]) / abs(client.db_channel.id))
+                    end = int(int(argument[2]) / abs(client.db_channel.id))
+                    ids = range(start, end+1) if start <= end else list(range(start, end-1, -1))
+                elif len(argument) == 2:
+                    ids = [int(int(argument[1]) / abs(client.db_channel.id))]
+                else:
+                    ids = []
+                temp_msg = await message.reply("Pʟᴇᴀsᴇ ᴡᴀɪᴛ...")
+                try:
+                    messages = await get_messages(client, ids)
+                    await temp_msg.delete()
+                    copied_msg = None
+                    for msg in messages:
+                        caption = CUSTOM_CAPTION.format(
+                            previouscaption="" if not msg.caption else msg.caption.html,
+                            filename=(msg.document.file_name if msg.document else "")
+                        ) if bool(CUSTOM_CAPTION) and getattr(msg, "document", None) else ("" if not msg.caption else msg.caption.html)
+                        reply_markup = None if DISABLE_CHANNEL_BUTTON else msg.reply_markup
+                        try:
+                            copied_msg = await msg.copy(
+                                chat_id=message.from_user.id,
+                                caption=caption,
+                                parse_mode=ParseMode.HTML,
+                                reply_markup=reply_markup,
+                                protect_content=PROTECT_CONTENT
+                            )
+                            await asyncio.sleep(0.5)
+                            if copied_msg:
+                                asyncio.create_task(delete_after_delay(copied_msg, 600))
+                        except FloodWait as e:
+                            await asyncio.sleep(e.x)
+                            copied_msg = await msg.copy(
+                                chat_id=message.from_user.id,
+                                caption=caption,
+                                parse_mode=ParseMode.HTML,
+                                reply_markup=reply_markup,
+                                protect_content=PROTECT_CONTENT
+                            )
+                            if copied_msg:
+                                asyncio.create_task(delete_after_delay(copied_msg, 600))
+                        except Exception:
+                            pass
+                    if copied_msg:
+                        await copied_msg.reply(
+                            "<b>⚠️ PLEASE NOTE :\nThis file will be automatically deleted after 10 minutes. ⏳</b>"
+                        )
+                except Exception:
+                    await message.reply_text("Something went wrong while fetching messages.")
+                return
+            except Exception:
+                pass
         reply_markup = InlineKeyboardMarkup([
-            [InlineKeyboardButton("About Me", callback_data="about"),
-             InlineKeyboardButton("Close", callback_data="close")]
+            [InlineKeyboardButton("About Me", callback_data="about"), InlineKeyboardButton("Close", callback_data="close")]
         ])
         await message.reply_text(
             text=START_MSG.format(
@@ -147,15 +167,22 @@ async def start_command(client: Bot, message: Message):
             quote=True
         )
     else:
-        btn = [[InlineKeyboardButton("✨ GET PREMIUM ACCESS", callback_data="buy_premium")]]
+        # not premium, create payment button
+        order_id = f"ORD{uid}{int(time.time())}"
+        user_orders[order_id] = uid
+        amount = 100  # INR, change as needed
+        payment_url = f"{BHARATPE_PAYMENT_BASE_URL}{amount}?order_id={order_id}"
+
+        btn = [[InlineKeyboardButton("✨ GET PREMIUM ACCESS", url=payment_url)]]
+
         await message.reply(
-            f"<b>⚠️ Premium Access Required ⚠️</b>\n\nThis link requires premium access.\n\nUpgrade now to unlock all content for just ₹59!",
+            f"<b>⚠️ Premium Access Required ⚠️</b>\n\nThis link requires premium access to view all files.\n\nUpgrade now to unlock all content!",
             reply_markup=InlineKeyboardMarkup(btn),
             protect_content=False,
             quote=True
         )
 
-# -------------------- NOT JOINED HANDLER --------------------
+# fallback start when subscription filters fail
 @Bot.on_message(filters.command('start') & filters.private)
 async def not_joined(client: Bot, message: Message):
     user_id = message.from_user.id
@@ -188,22 +215,77 @@ async def not_joined(client: Bot, message: Message):
         pass
 
     try:
-        buttons.append([InlineKeyboardButton(
-            text='Try Again',
-            url=f"https://t.me/{client.username}?start={message.command[1]}")])
+        buttons.append([InlineKeyboardButton(text='Try Again', url=f"https://t.me/{client.username}?start={message.command[1]}")])
     except IndexError:
         pass
 
     await message.reply(
-        text=FORCE_MSG.format(
-            first=message.from_user.first_name,
-            last=message.from_user.last_name,
-            username=None if not message.from_user.username else '@' + message.from_user.username,
-            mention=message.from_user.mention,
-            id=message.from_user.id
-        ),
-        reply_markup=InlineKeyboardMarkup(buttons),
-        quote=True,
-        disable_web_page_preview=True
-        )
-    
+        text = FORCE_MSG.format(
+                first = message.from_user.first_name,
+                last = message.from_user.last_name,
+                username = None if not message.from_user.username else '@' + message.from_user.username,
+                mention = message.from_user.mention,
+                id = message.from_user.id
+            ),
+        reply_markup = InlineKeyboardMarkup(buttons),
+        quote = True,
+        disable_web_page_preview = True
+    )
+
+# ---------------- ADMIN COMMANDS ----------------
+@Bot.on_message(filters.command('users') & filters.private)
+async def get_users(client: Bot, message: Message):
+    user_id = message.from_user.id
+    if not await is_admin(user_id) and user_id != OWNER_ID:
+        return
+    msg = await client.send_message(chat_id=message.chat.id, text=WAIT_MSG)
+    users = await full_userbase()
+    await msg.edit(f"{len(users)} users are using this bot")
+
+@Bot.on_message(filters.command('broadcast') & filters.private)
+async def send_text(client: Bot, message: Message):
+    user_id = message.from_user.id
+    if not await is_admin(user_id) and user_id != OWNER_ID:
+        return
+    if message.reply_to_message:
+        query = await full_userbase()
+        broadcast_msg = message.reply_to_message
+        total = successful = unsuccessful = 0
+        pls_wait = await message.reply("<i>Broadcast running...</i>")
+        for chat_id in query:
+            try:
+                await broadcast_msg.copy(chat_id)
+                successful += 1
+            except FloodWait as e:
+                await asyncio.sleep(e.x)
+                try:
+                    await broadcast_msg.copy(chat_id)
+                    successful += 1
+                except:
+                    unsuccessful += 1
+            except Exception:
+                try:
+                    await del_user(chat_id)
+                except:
+                    pass
+                unsuccessful += 1
+            total += 1
+        status = f"""<b><u>Broadcast Completed</u>
+
+Total Users: <code>{total}</code>
+Successful: <code>{successful}</code>
+Blocked/Removed/Unsuccessful: <code>{unsuccessful}</code></b>"""
+        return await pls_wait.edit(status)
+    else:
+        msg = await message.reply(REPLY_ERROR)
+        await asyncio.sleep(8)
+        await msg.delete()
+
+# restart by owner
+@Bot.on_message(filters.private & filters.command("restart") & filters.user(OWNER_ID))
+async def restart_bot(b, m):
+    restarting_message = await m.reply_text(f"⚡️<b><i>Restarting....</i></b>", disable_notification=True)
+    await asyncio.sleep(3)
+    await restarting_message.edit_text("✅ <b><i>Successfully Restarted</i></b>")
+    os.execl(sys.executable, sys.executable, *sys.argv)
+        
