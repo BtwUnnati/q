@@ -26,7 +26,7 @@ from helper_func import (
 from database.database import add_user, del_user, full_userbase, present_user, is_admin, get_user, expire_premium_user
 
 # ---------------- PAYMENT CONFIG ----------------
-BHARATPE_MERCHANT_ID = "YOUR_MERCHANT_ID"
+BHARATPE_MERCHANT_ID = "56433931"
 BHARATPE_PAYMENT_BASE_URL = f"https://bharatpe.in/pay/{BHARATPE_MERCHANT_ID}/"
 WEBHOOK_HOST = "https://yourdomain.com"  # Replace with your HTTPS URL
 WEBHOOK_PATH = "/bharatpe_webhook"
