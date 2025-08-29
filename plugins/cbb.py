@@ -1,4 +1,10 @@
 #(©)Codexbotz
+import asyncio, time
+from pyrogram import Client, filters
+
+from config import APP_ID, API_HASH, TG_BOT_TOKEN, PREMIUM_PRICE, PAY_WINDOW
+from database.database import init_db, is_premium, set_premium
+from plugins.payment import create_payment, check_payment
 
 from pyrogram import __version__
 from bot import Bot
