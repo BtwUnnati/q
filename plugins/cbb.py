@@ -43,7 +43,7 @@ async def cb_handler(client: Bot, query: CallbackQuery):
             reply_markup = InlineKeyboardMarkup(
                 [   
                     [
-                        InlineKeyboardButton("Buy Prime Membership", url=(BUY_URL))
+                        InlineKeyboardButton("Buy Prime Membership", callback_data="buy_premium")
                     ],
                     [
                         InlineKeyboardButton("Help & Support", url=(ADMIN_URL))
@@ -54,3 +54,72 @@ async def cb_handler(client: Bot, query: CallbackQuery):
                 ]
             )
             )
+##Auto Payment 
+init_db()
+app = Client("bharatpe_bot", api_id=APP_ID, api_hash=API_HASH, bot_token=TG_BOT_TOKEN)
+
+def fmt_time_left(seconds: int) -> str:
+    m, s = divmod(seconds, 60)
+    return f"{m:02d}:{s:02d}"
+
+@app.on_message(filters.command("start"))
+async def start(_, m):
+    user_id = m.from_user.id
+    if is_premium(user_id):
+        await m.reply("✅ You already have Premium Access!")
+    else:
+        btns = InlineKeyboardMarkup([[InlineKeyboardButton("💎 Buy Premium", callback_data="buy_premium")]])
+        await m.reply(
+            f"👋 Hello {m.from_user.first_name}!\n\n"
+            f"⭐ Premium Plan: ₹{PREMIUM_PRICE}/30 Days\n\n"
+            "Click below to unlock Premium instantly 👇",
+            reply_markup=btns
+        )
+
+@app.on_callback_query(filters.regex("buy_premium"))
+async def buy_premium(_, cq):
+    user_id = cq.from_user.id
+    payment = create_payment(user_id)
+    txn_id = payment.get("txnId")
+    pay_url = payment.get("qrUrl") or payment.get("url")
+
+    start_time = int(time.time())
+    expire_time = start_time + PAY_WINDOW
+
+    msg = await cq.message.reply(
+        f"💰 Please pay ₹{PREMIUM_PRICE} via BharatPe:\n\n{pay_url}\n\n"
+        f"⏳ Time left: {fmt_time_left(PAY_WINDOW)}",
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔗 Pay Now", url=pay_url)]])
+    )
+
+    async def monitor_payment():
+        while True:
+            now = int(time.time())
+            left = expire_time - now
+
+            if left <= 0:
+                await msg.edit_text("❌ Payment not received in 5 minutes. Link expired.")
+                return
+
+            # check BharatPe API
+            if check_payment(txn_id, user_id):
+                set_premium(user_id)
+                await msg.edit_text("🎉 Payment received! ✅ You are now a Premium User.")
+                return
+
+            # update countdown
+            try:
+                await msg.edit_text(
+                    f"💰 Please pay ₹{PREMIUM_PRICE} via BharatPe:\n\n{pay_url}\n\n"
+                    f"⏳ Time left: {fmt_time_left(left)}",
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔗 Pay Now", url=pay_url)]])
+                )
+            except:
+                pass
+
+            await asyncio.sleep(15)
+
+    app.loop.create_task(monitor_payment())
+
+app.run()
+
