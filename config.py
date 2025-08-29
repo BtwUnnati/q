@@ -9,6 +9,14 @@ from logging.handlers import RotatingFileHandler
 from os import environ
 
 
+# BharatPe API credentials
+BHARATPE_MERCHANT_ID = "your_merchant_id"
+BHARATPE_API_KEY = "your_api_key"
+
+# Premium settings
+PREMIUM_PRICE = 59   # INR
+PAY_WINDOW = 300     # seconds (5 minutes)
+
 #Bot token @Botfather
 TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "")
 
