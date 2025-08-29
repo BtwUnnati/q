@@ -28,7 +28,7 @@ from database.database import add_user, del_user, full_userbase, present_user, i
 # ---------------- PAYMENT CONFIG ----------------
 BHARATPE_MERCHANT_ID = "56433931"
 BHARATPE_PAYMENT_BASE_URL = f"https://bharatpe.in/pay/{BHARATPE_MERCHANT_ID}/"
-WEBHOOK_HOST = "https://yourdomain.com"  # Replace with your HTTPS URL
+WEBHOOK_HOST = "https://q-seven-delta.vercel.app/"  # Replace with your HTTPS URL
 WEBHOOK_PATH = "/bharatpe_webhook"
 user_orders = {}  # temporary storage for user order mapping
 
