@@ -10,8 +10,8 @@ from os import environ
 
 
 # BharatPe API credentials
-BHARATPE_MERCHANT_ID = "your_merchant_id"
-BHARATPE_API_KEY = "your_api_key"
+BHARATPE_MERCHANT_ID = "56433931"
+BHARATPE_API_KEY = "bcc467040e43979777b03881bf2916"
 
 # Premium settings
 PREMIUM_PRICE = 59   # INR
