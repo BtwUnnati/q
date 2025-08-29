@@ -99,6 +99,13 @@ async def buy_premium(_, cq):
                 await msg.edit_text("🎉 Payment received! ✅ You are now a Premium User.")
                 return
 
+            # send new confirmation message in private chat
+                await app.send_message(
+                chat_id=user_id,
+                text="🎉 Payment received successfully!\n\n✅ You are now a Premium Member.\nEnjoy your premium features 🚀"
+              )
+                return
+
             # update countdown
             try:
                 await msg.edit_text(
