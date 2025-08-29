@@ -5,7 +5,7 @@ import asyncio
 import time
 from pyrogram import filters
 from pyrogram.enums import ParseMode
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from pyrogram.errors import FloodWait, UserIsBlocked, InputUserDeactivated
 
 from bot import Bot
@@ -135,7 +135,7 @@ async def start_command(client: Bot, message: Message):
         )
     else:
         # not premium
-        btn = [[InlineKeyboardButton("✨ GET PREMIUM ACCESS", callback_data="buy_premium")]]
+        btn = [[InlineKeyboardButton("✨ GET PREMIUM ACCESS", callback_data= "buy_premium")]]
         await message.reply(
             f"<b>⚠️ Premium Access Required ⚠️</b>\n\nThis link requires premium access to view all files.\n\nUpgrade now to unlock all content!",
             reply_markup=InlineKeyboardMarkup(btn),
